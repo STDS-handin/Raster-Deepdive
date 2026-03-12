@@ -21,6 +21,8 @@ Follow the instructions in `Submission via GitHub Pages` to create a new repo in
 
 ---
 ```{r}
+#| message: false
+#| warning: false
 
 library(terra)
 library(tidyverse)
@@ -45,6 +47,7 @@ Sys.setenv(PATH = paste0(
 With `terra::vect()`, GeoPackages can be read in. Using the `layer` argument, we can specify which layer should be read from the GeoPackage. For the cantonal boundaries we need `tlm_kantonsgebiet`, and for the land-use data we need `tlm_bb_bodenbedeckung`.
 
 ```{r}
+#| message: false
 
 canton_polygons <- terra::vect("data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg", layer = "tlm_kantonsgebiet")
 
@@ -55,6 +58,8 @@ canton_polygons <- terra::vect("data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg", laye
 
 
 ```{r}
+#| message: false
+
 land_use_polygons <- terra::vect("data/SWISSTLM3D_2025.gpkg", layer = "tlm_bb_bodenbedeckung")
 
 ```
@@ -147,11 +152,15 @@ forest_are_per_canton <- zonal(forest_raster, canton_raster, fun = "mean") %>%
 forest_are_per_canton
 ```
 
-Now let's measure this with tictoc. In order to perform a fair comparison, the rasterization step must be included in the timing. This also means we need to be aware that the comparison carries some subjectiveness: the cell size is set externally and different values are valid. For small cell sizes the raster-based workflow may be slower, while for larger ones it may be faster. Therefore, for a proper comparison, the accuracy of the result also needs to be taken into consideration.
+Now let's measure this with tictoc. In order to perform a fair comparison, the rasterization step must be included in the timing. To make the comparison with GDAL fair, the data reading step is also included — GDAL has to read from disk on every run. This also means we need to be aware that the comparison carries some subjectiveness: the cell size is set externally and different values are valid. For small cell sizes the raster-based workflow may be slower, while for larger ones it may be faster. Therefore, for a proper comparison, the accuracy of the result also needs to be taken into consideration.
 
 ```{r}
+#| message: false
 
-tictoc::tic()
+tictoc::tic("terra")
+
+canton_polygons <- terra::vect("data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg", layer = "tlm_kantonsgebiet")
+land_use_polygons <- terra::vect("data/SWISSTLM3D_2025.gpkg", layer = "tlm_bb_bodenbedeckung")
 
 template_canton <- rast(
   extent = ext(canton_polygons),   # takes extent from your vector
@@ -242,6 +251,7 @@ Analogous to Task 1, I first rasterize the canton polygons, again using a 100m �
 
 
 ```{bash}
+#| output: false
 
 gdal vector rasterize -l tlm_kantonsgebiet \
         --resolution 100,100 \
@@ -258,6 +268,8 @@ The forest polygons also need to be rasterized, again at 100m × 100m resolution
 
 
 ```{bash}
+#| output: false
+
 gdal vector rasterize --where "objektart='Wald'" \
         -l tlm_bb_bodenbedeckung \
         --resolution 100,100 \
@@ -275,6 +287,8 @@ The new GDAL API also features a function for zonal operations. Under `--input`,
 
 
 ```{bash}
+#| output: false
+
 gdal raster zonal-stats --input ./data/forest_raster_cent \
         --zones ./data/kantone_raster \
         --stat=mean \
@@ -307,12 +321,12 @@ cat final_analysis_results.csv
 As already mentioned in the task description, timing is not straightforward here since tictoc is an R library. The workaround is to wrap the bash block containing all commands between two R chunks calling `tic()` and `toc()`.
 
 ```{r}
-tictoc::tic()
+tictoc::tic("GDAL")
 ```
 
 
 ```{bash}
-
+#| output: false
 
 gdal vector rasterize -l tlm_kantonsgebiet \
         --resolution 100,100 \
@@ -348,8 +362,6 @@ gdal vector sql \
     --format CSV \
     --output final_analysis_results.csv
 
-cat final_analysis_results.csv
-
 ```
 
 ```{r}
@@ -364,6 +376,8 @@ To complete the comparison, here are the timings for the `sf` and DuckDB approac
 **sf**
 
 ```{r}
+#| message: false
+#| warning: false
 
 canton_polygons <- st_read(
   "./data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg",
@@ -376,7 +390,7 @@ ground_cover_polygons <- st_read(
   layer = "tlm_bb_bodenbedeckung"
 )
 
-tictoc::tic("Base R Computation")
+tictoc::tic("sf")
 
 forest_polygons <- ground_cover_polygons %>%
   filter(objektart == "Wald")
@@ -419,9 +433,9 @@ con <- dbConnect(
   read_only = TRUE
 )
 
-dbExecute(con, "LOAD spatial;")
+invisible(dbExecute(con, "LOAD spatial;"))
 
-tictoc::tic("DuckDB Computation")
+tictoc::tic("DuckDB")
 canton_frac <- dbReadTable(con, "cantonal_forest_fractions")
 tictoc::toc()
 
