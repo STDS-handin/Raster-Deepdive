@@ -30,6 +30,16 @@ library(sf)
 
 ```
 
+```{r}
+#| include: false
+
+# Make the conda gdal_environment available to all bash chunks
+knitr::opts_chunk$set(engine.env = list(
+  PATH = paste0("/home/etienne/miniforge3/envs/gdal_environment/bin", ":", Sys.getenv("PATH"))
+))
+
+```
+
 
 With `terra::vect()`, GeoPackages can be read in. Using the `layer` argument, we can specify which layer should be read from the GeoPackage. For the cantonal boundaries we need `tlm_kantonsgebiet`, and for the land-use data we need `tlm_bb_bodenbedeckung`.
 
@@ -212,6 +222,7 @@ conda create -n gdal_environment
 ```
 
 ```{bash}
+#| eval: false
 # Activate the environment
 conda activate gdal_environment
 ```
