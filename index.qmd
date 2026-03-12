@@ -451,7 +451,7 @@ print(canton_frac)
 
 #### GDAL vs. terra
 
-The GDAL workflow is the fastest of all approaches, beating the terra workflow by a factor of approximately 4×. This is rather surprising, because GDAL reads from and writes to disk multiple times during its workflow. I had always assumed that, due to a concept known as the [Zugriffslücke](https://wwwlehre.dhbw-stuttgart.de/~kfg/db/dbMA.pdf) — the large performance gap between memory and disk access — such workflows should carry a severe disadvantage. This result makes me question whether the speed difference between GDAL and terra is truly due to fundamental differences between the tools, or whether it is at least partially caused by overhead within R.
+The GDAL workflow is the fastest of all approaches, beating the terra workflow by a factor of approximately 4×. This is rather surprising, because GDAL reads from and writes to disk multiple times during its workflow. I had always assumed that, due to a concept known as the [Zugriffslücke](https://wwwlehre.dhbw-stuttgart.de/~kfg/db/dbMA.pdf) — the large performance gap between memory and disk access — such workflows should carry a severe disadvantage. So what causes the speed difference between `GDAL` and `terra`? It might be that there is some additional overhead caused by `R` resulting in slower exection speed in `terra`.
 
 #### Raster-based vs. vector-based
 
