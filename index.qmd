@@ -35,11 +35,11 @@ library(sf)
 ```{r}
 #| include: false
 
-# Add the conda gdal_environment to PATH so all bash chunks can call gdal
-Sys.setenv(PATH = paste0(
-  "/home/etienne/miniforge3/envs/gdal_environment/bin", ":",
-  Sys.getenv("PATH")
-))
+# Add the conda gdal_environment to PATH and set PROJ_DATA so all bash chunks can call gdal
+Sys.setenv(
+  PATH = paste0("/home/etienne/miniforge3/envs/gdal_environment/bin", ":", Sys.getenv("PATH")),
+  PROJ_DATA = "/home/etienne/miniforge3/envs/gdal_environment/share/proj"
+)
 
 ```
 
@@ -360,6 +360,7 @@ gdal vector sql \
            ON CAST(z.value AS INTEGER) = k.kantonsnummer
            ORDER BY z.mean DESC" \
     --format CSV \
+    --overwrite \
     --output final_analysis_results.csv
 
 ```
