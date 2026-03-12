@@ -4222,7 +4222,7 @@ window.Quarto = {
 <span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>terra: 17.12 sec elapsed</code></pre>
+<pre><code>terra: 19.139 sec elapsed</code></pre>
 </div>
 </div>
 </section>
@@ -4383,7 +4383,7 @@ kantonsnummer,name,mean
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>GDAL: 4.644 sec elapsed</code></pre>
+<pre><code>GDAL: 3.998 sec elapsed</code></pre>
 </div>
 </div>
 </section>
@@ -4452,7 +4452,7 @@ Projected CRS: CH1903+ / LV95</code></pre>
 <span id="cb34-27"><a href="#cb34-27" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb34-28"><a href="#cb34-28" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>sf: 425.662 sec elapsed</code></pre>
+<pre><code>sf: 488.988 sec elapsed</code></pre>
 </div>
 </div>
 <p><strong>DuckDB</strong></p>
@@ -4469,7 +4469,7 @@ Projected CRS: CH1903+ / LV95</code></pre>
 <span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>canton_frac <span class="ot">&lt;-</span> <span class="fu">dbReadTable</span>(con, <span class="st">&quot;cantonal_forest_fractions&quot;</span>)</span>
 <span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>DuckDB: 149.968 sec elapsed</code></pre>
+<pre><code>DuckDB: 181.649 sec elapsed</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(canton_frac)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -4502,7 +4502,18 @@ Projected CRS: CH1903+ / LV95</code></pre>
 26                 Genève        11.64690</code></pre>
 </div>
 </div>
-<p>In terms of speed, the two raster-based workflows (GDAL and terra) are clearly faster, performing the same analysis in a fraction of the time. This result has to be taken with a grain of salt, however. Through rasterization we lose precision, which might be important in a given project. To obtain more precise results, one would need to choose smaller cell sizes, which in turn increases compute time and narrows the speed gap with the vector-based approaches. So the speed advantage at least partially stems from a trade-off with accuracy: if we are not willing to accept that trade-off, the advantage will likely decrease.</p>
+</section>
+<section id="interpretation" class="level3">
+<h3 class="anchored" data-anchor-id="interpretation">Interpretation</h3>
+<section id="gdal-vs.-terra" class="level4">
+<h4 class="anchored" data-anchor-id="gdal-vs.-terra">GDAL vs. terra</h4>
+<p>The GDAL workflow is the fastest of all approaches, beating the terra workflow by a factor of approximately 4×. This is rather surprising, because GDAL reads from and writes to disk multiple times during its workflow. I had always assumed that, due to a concept known as the <a href="https://wwwlehre.dhbw-stuttgart.de/~kfg/db/dbMA.pdf">Zugriffslücke</a> — the large performance gap between memory and disk access — such workflows should carry a severe disadvantage.</p>
+</section>
+<section id="raster-based-vs.-vector-based" class="level4">
+<h4 class="anchored" data-anchor-id="raster-based-vs.-vector-based">Raster-based vs. vector-based</h4>
+<p>In terms of speed, both raster-based workflows (GDAL and terra) are clearly faster than the vector-based ones, performing the same analysis in a fraction of the time. However, the GDAL result makes me question whether this speed difference is truly due to rasterization itself, or whether it is at least partially caused by overhead within R.</p>
+<p>This result has to be taken with a grain of salt regardless. Through rasterization we lose precision, which might be important in a given project. To obtain more precise results, one would need to choose smaller cell sizes, which in turn increases compute time and narrows the speed gap with the vector-based approaches. So the speed advantage at least partially stems from a trade-off with accuracy: if we are not willing to accept that trade-off, the advantage will likely decrease.</p>
+</section>
 </section>
 </section>
 </section>
