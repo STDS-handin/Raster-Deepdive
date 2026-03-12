@@ -4222,7 +4222,7 @@ window.Quarto = {
 <span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>terra: 19.327 sec elapsed</code></pre>
+<pre><code>terra: 17.12 sec elapsed</code></pre>
 </div>
 </div>
 </section>
@@ -4302,13 +4302,12 @@ window.Quarto = {
 <span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a><span class="st">           ON CAST(z.value AS INTEGER) = k.kantonsnummer</span></span>
 <span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a><span class="st">           ORDER BY z.mean DESC&quot;</span> <span class="dt">\</span></span>
 <span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">--format</span> CSV <span class="dt">\</span></span>
-<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">--output</span> final_analysis_results.csv</span>
-<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> final_analysis_results.csv</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">--overwrite</span> <span class="dt">\</span></span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">--output</span> final_analysis_results.csv</span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span> final_analysis_results.csv</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>ERROR 1: sql: Dataset &#39;final_analysis_results.csv&#39; already exists. You may specify the --overwrite/--overwrite-layer/--append/--update option.
-Usage: gdal vector sql [OPTIONS] &lt;INPUT&gt; [&lt;OUTPUT&gt;]
-Try &#39;gdal vector sql --help&#39; for help.
+<pre><code>0...10...20...30...40...50...60...70...80...90...100 - done.
 kantonsnummer,name,mean
 &quot;21&quot;,Ticino,&quot;42.4556598632008&quot;
 &quot;14&quot;,Schaffhausen,&quot;41.9084555752999&quot;
@@ -4384,7 +4383,7 @@ kantonsnummer,name,mean
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>GDAL: 4.145 sec elapsed</code></pre>
+<pre><code>GDAL: 4.644 sec elapsed</code></pre>
 </div>
 </div>
 </section>
@@ -4453,7 +4452,7 @@ Projected CRS: CH1903+ / LV95</code></pre>
 <span id="cb34-27"><a href="#cb34-27" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb34-28"><a href="#cb34-28" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>sf: 481.593 sec elapsed</code></pre>
+<pre><code>sf: 425.662 sec elapsed</code></pre>
 </div>
 </div>
 <p><strong>DuckDB</strong></p>
@@ -4470,7 +4469,7 @@ Projected CRS: CH1903+ / LV95</code></pre>
 <span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>canton_frac <span class="ot">&lt;-</span> <span class="fu">dbReadTable</span>(con, <span class="st">&quot;cantonal_forest_fractions&quot;</span>)</span>
 <span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>DuckDB: 176.753 sec elapsed</code></pre>
+<pre><code>DuckDB: 149.968 sec elapsed</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(canton_frac)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -4506,84 +4505,10 @@ Projected CRS: CH1903+ / LV95</code></pre>
 <p>In terms of speed, the two raster-based workflows (GDAL and terra) are clearly faster, performing the same analysis in a fraction of the time. This result has to be taken with a grain of salt, however. Through rasterization we lose precision, which might be important in a given project. To obtain more precise results, one would need to choose smaller cell sizes, which in turn increases compute time and narrows the speed gap with the vector-based approaches. So the speed advantage at least partially stems from a trade-off with accuracy: if we are not willing to accept that trade-off, the advantage will likely decrease.</p>
 </section>
 </section>
-<section id="bonus-gdal-pipeline" class="level2">
-<h2 class="anchored" data-anchor-id="bonus-gdal-pipeline">Bonus: GDAL Pipeline</h2>
-<p>One potential disadvantage of the GDAL workflow above is that intermediate results are written to disk and read back multiple times: once for the canton raster, once for the forest raster, and once for the zonal statistics CSV. Reading from and writing to disk is considerably more expensive in terms of time than keeping data in memory. GDAL addresses this with its <code>pipeline</code> command, which chains multiple operations so that intermediate results are passed directly in memory rather than being written to disk.</p>
-<p>The pipeline below chains reading, rasterizing, and computing zonal statistics in a single command. The canton rasterization is even nested inline as the zones argument, so it too never touches disk. Only the final CSV result needs to be written to a file, because the CSV driver requires a seekable file and cannot read from a pipe.</p>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">tic</span>(<span class="st">&quot;GDAL Pipeline&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb41"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="ex">gdal</span> pipeline <span class="dt">\</span></span>
-<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>  ! read ./data/SWISSTLM3D_2025.gpkg <span class="dt">\</span></span>
-<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>  ! rasterize <span class="dt">\</span></span>
-<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">--input-layer</span> tlm_bb_bodenbedeckung <span class="dt">\</span></span>
-<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a>      <span class="at">--where</span> <span class="st">&quot;objektart=&#39;Wald&#39;&quot;</span> <span class="dt">\</span></span>
-<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a>      <span class="at">--burn</span> 100 <span class="at">--init</span> 0 <span class="at">--nodata</span> 255 <span class="dt">\</span></span>
-<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a>      <span class="at">--resolution</span> 100,100 <span class="dt">\</span></span>
-<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a>  ! zonal-stats <span class="dt">\</span></span>
-<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>      <span class="at">--zones</span> [ read ./data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg <span class="dt">\</span></span>
-<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a>                ! rasterize <span class="at">--resolution</span> 100,100 <span class="dt">\</span></span>
-<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a>                <span class="at">-a</span> kantonsnummer <span class="at">-l</span> tlm_kantonsgebiet ] <span class="dt">\</span></span>
-<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>      <span class="at">--stat</span> mean <span class="dt">\</span></span>
-<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a>  ! write <span class="at">--output-format</span> CSV <span class="dt">\</span></span>
-<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a>          <span class="at">--output</span> /tmp/forest_stats.csv <span class="dt">\</span></span>
-<span id="cb41-15"><a href="#cb41-15" aria-hidden="true" tabindex="-1"></a>          <span class="at">--overwrite</span></span>
-<span id="cb41-16"><a href="#cb41-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb41-17"><a href="#cb41-17" aria-hidden="true" tabindex="-1"></a><span class="ex">gdal</span> vector sql <span class="dt">\</span></span>
-<span id="cb41-18"><a href="#cb41-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">--dialect</span> sqlite <span class="dt">\</span></span>
-<span id="cb41-19"><a href="#cb41-19" aria-hidden="true" tabindex="-1"></a>  <span class="at">--sql</span> <span class="st">&quot;SELECT z.value AS kantonsnummer, k.name, z.mean</span></span>
-<span id="cb41-20"><a href="#cb41-20" aria-hidden="true" tabindex="-1"></a><span class="st">         FROM forest_stats z</span></span>
-<span id="cb41-21"><a href="#cb41-21" aria-hidden="true" tabindex="-1"></a><span class="st">         JOIN &#39;./data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg&#39;.tlm_kantonsgebiet k</span></span>
-<span id="cb41-22"><a href="#cb41-22" aria-hidden="true" tabindex="-1"></a><span class="st">           ON CAST(z.value AS INTEGER) = k.kantonsnummer</span></span>
-<span id="cb41-23"><a href="#cb41-23" aria-hidden="true" tabindex="-1"></a><span class="st">         WHERE z.value != &#39;0&#39;</span></span>
-<span id="cb41-24"><a href="#cb41-24" aria-hidden="true" tabindex="-1"></a><span class="st">         ORDER BY z.mean DESC&quot;</span> <span class="dt">\</span></span>
-<span id="cb41-25"><a href="#cb41-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">--format</span> CSV <span class="dt">\</span></span>
-<span id="cb41-26"><a href="#cb41-26" aria-hidden="true" tabindex="-1"></a>  /tmp/forest_stats.csv <span class="dt">\</span></span>
-<span id="cb41-27"><a href="#cb41-27" aria-hidden="true" tabindex="-1"></a>  /vsistdout/</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>0...10...20...30...40...50Warning 1: Resampled source raster to match zones using average resampling.
-...60...70...80...90...100 - done in 00:00:05.
-kantonsnummer,name,mean
-&quot;21&quot;,Ticino,&quot;42.4556598632008&quot;
-&quot;14&quot;,Schaffhausen,&quot;41.9084555752999&quot;
-&quot;11&quot;,Solothurn,&quot;40.4652159152839&quot;
-&quot;26&quot;,Jura,&quot;39.9744597932356&quot;
-&quot;13&quot;,Basel-Landschaft,&quot;39.1647851774916&quot;
-&quot;6&quot;,Obwalden,&quot;35.5066592528873&quot;
-&quot;19&quot;,Aargau,&quot;34.8845934643401&quot;
-&quot;24&quot;,Neuchâtel,&quot;34.248927831434&quot;
-&quot;15&quot;,Appenzell Ausserrhoden,&quot;31.5914752388803&quot;
-&quot;7&quot;,Nidwalden,&quot;30.2175218713081&quot;
-&quot;5&quot;,Schwyz,&quot;29.8504261374627&quot;
-&quot;22&quot;,Vaud,&quot;29.4353653694488&quot;
-&quot;1&quot;,Zürich,&quot;29.139057668338&quot;
-&quot;2&quot;,Bern,&quot;27.8978574571713&quot;
-&quot;16&quot;,Appenzell Innerrhoden,&quot;27.5699397664448&quot;
-&quot;3&quot;,Luzern,&quot;27.2246142112414&quot;
-&quot;17&quot;,St. Gallen,&quot;26.4101231683084&quot;
-&quot;9&quot;,Zug,&quot;26.0472814562633&quot;
-&quot;10&quot;,Fribourg,&quot;25.0485622110094&quot;
-&quot;8&quot;,Glarus,&quot;24.2232266474071&quot;
-&quot;18&quot;,Graubünden,&quot;22.7212822937171&quot;
-&quot;20&quot;,Thurgau,&quot;20.127363399439&quot;
-&quot;23&quot;,Valais,&quot;20.0336262104377&quot;
-&quot;4&quot;,Uri,&quot;14.3326812967947&quot;
-&quot;12&quot;,Basel-Stadt,&quot;12.0980130625783&quot;
-&quot;25&quot;,Genève,&quot;11.4553194965219&quot;</code></pre>
-</div>
-</div>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>GDAL Pipeline: 6.481 sec elapsed</code></pre>
-</div>
-</div>
-</section>
 </section>
 <section id="usage-of-ki" class="level1">
 <h1>Usage of KI</h1>
-<p>Claude Sonnet (Anthropic) was used as an aid for this exercise. It was used to review the submitted document, identify and fix inconsistencies in file naming across code chunks, add the required <code>_quarto.yml</code> configuration and YAML front matter, and perform spell-checking and formatting of the written explanations. Furthermore, it was used to convert the algebraic derivation to LaTeX, and to add the bonus section on GDAL pipelines.</p>
+<p>Claude Sonnet (Anthropic) was used as an aid for this exercise. It was used to review the submitted document, identify and fix inconsistencies in file naming across code chunks, add the required <code>_quarto.yml</code> configuration and YAML front matter, and perform spell-checking and formatting of the written explanations. Furthermore, it was used to convert the algebraic derivation to LaTeX.</p>
 
 
 </section>
