@@ -1,0 +1,1 @@
+(echo "kantonsnummer,mean,name"; join -t ',' -1 1 -2 1 <(tail -n +2 ./data/cantonal_forest_proportion.csv | sort -t ',' -k1,1) <(tail -n +2 ./data/canton_index.csv | sort -t ',' -k1,1) | sort -t ',' -k1,1n) > ./data/final_forest_stats.csv

@@ -1,0 +1,23 @@
+# Data (too large for git)
+/data/*
+
+# Quarto cache
+/.quarto/
+/_site/
+/_freeze/
+
+# Rendered output (lives on gh-pages branch, not master)
+index.html
+/index_files/
+
+# GDAL scratch outputs
+joined_data
+final_analysis_results.csv
+
+# Vim swap files
+*.swp
+*.swo
+*.swn
+
+# Personal/temp files
+meeting_anto.txt

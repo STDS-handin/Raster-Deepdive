@@ -1,0 +1,470 @@
+---
+title: "Raster Deepdive: Tasks"
+format:
+  html:
+    embed-resources: true
+engine: knitr
+execute:
+  freeze: auto
+---
+
+# 🚀 Tasks
+
+Follow the instructions in `Submission via GitHub Pages` to create a new repo in the existing organization. As you did in the previous weeks, solve the next task in a file named `index.qmd`.
+
+## Task 1
+
+1. Redo `Task 1` from *Vector Deepdive* (calculate the percentage of forest per canton). However, this time use the R package `terra` to do the processing.
+2. Again, use the R package `tictoc` to measure the execution time of each step in the process.
+
+## Solution 1
+
+---
+```{r}
+
+library(terra)
+library(tidyverse)
+library(tictoc)
+library(duckdb)
+library(sf)
+
+```
+
+
+With `terra::vect()`, GeoPackages can be read in. Using the `layer` argument, we can specify which layer should be read from the GeoPackage. For the cantonal boundaries we need `tlm_kantonsgebiet`, and for the land-use data we need `tlm_bb_bodenbedeckung`.
+
+```{r}
+
+canton_polygons <- terra::vect("data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg", layer = "tlm_kantonsgebiet")
+
+
+```
+
+
+
+
+```{r}
+land_use_polygons <- terra::vect("data/SWISSTLM3D_2025.gpkg", layer = "tlm_bb_bodenbedeckung")
+
+```
+
+Let's get a quick visual confirmation that we imported reasonable things. We can do this using some quick-and-dirty plotting — terra works well with the standard `plot()` function.
+
+
+```{r}
+plot(canton_polygons)
+
+plot(land_use_polygons)
+```
+
+
+Theoretically, terra also features some support for manipulating vector data. However, since this is a raster deepdive, I decided to rasterize the vector data at this point and carry out the analysis purely using raster operations.
+
+Rasterizing requires a raster as a blueprint for the conversion. From it, attributes such as the cell size and CRS are taken. We can create such a template raster quite easily: I will create one with the extent and the coordinate system of the respective vector data. The resolution I have to set myself — I am going with a 100-metre cell size. Generally, the smaller the cell size, the smaller the quantization error from vector to raster data, but compute time also increases.
+
+
+```{r}
+
+template_canton <- rast(
+  extent = ext(canton_polygons),   # takes extent from your vector
+  resolution = 100,        # set your desired resolution (in map units, e.g. meters)
+  crs = crs(canton_polygons)        # same CRS as your vector
+)
+
+canton_raster <- rasterize( canton_polygons,template_canton, field = "kantonsnummer")
+
+
+plot(canton_raster)
+
+
+
+
+```
+
+
+For the land-use data, we need to be aware that land-use polygons can overlap. This causes problems when rasterizing, because each cell can only hold one value. The easiest way to handle this is to apply a filter operation on the polygons before rasterization — so in the end, some vector manipulation is still required. The `field` parameter sets the burn-in value for the raster. I am choosing 100 here, as this will make the calculation of the percentage forest cover very easy in a later step. For areas where no forest polygon lies, I assign the value 0.
+
+```{r}
+
+forest_polygons <- land_use_polygons[land_use_polygons$objektart == "Wald"]
+
+
+forest_template <- rast(
+  extent = ext(canton_polygons),   # extent of canton polygons
+  resolution = 100,        # set your desired resolution (in map units, e.g. meters)
+  crs = crs(canton_polygons)        # crs of canton polygons
+)
+
+# All forested areas get the value 100, all other areas get 0.
+forest_raster <- rasterize(forest_polygons, forest_template, field = 100, background = 0)
+
+plot(forest_raster)
+```
+
+Now, in order to get the forest coverage per canton, we can perform a zonal operation. The forest raster has only two distinct values: 100 for forest pixels and 0 for non-forest pixels. Due to this, we can calculate the percentage of cantonal area covered by forest rather easily by applying the mean function to every canton zone.
+
+Calculating the mean of the forest raster performs the following operation:
+
+$$
+\begin{aligned}
+\text{mean}(\text{pixel values}) &= \frac{\sum \text{pixel values}}{n_{\text{pixels total}}} \\
+&= \frac{\sum(100,\ 0,\ 0,\ \ldots,\ 100)}{n_{\text{pixels total}}} \\
+&= \frac{100 \cdot \sum(1,\ 0,\ 0,\ \ldots,\ 1)}{n_{\text{pixels total}}} \\
+&= 100 \cdot \frac{n_{\text{forest pixels}}}{n_{\text{pixels total}}}
+\end{aligned}
+$$
+
+So the mean directly gives the percentage forest cover for every canton.
+
+```{r}
+kanton_number_keys <- canton_polygons %>% as.data.frame() %>%
+    select(name, kantonsnummer)
+
+
+forest_are_per_canton <- zonal(forest_raster, canton_raster, fun = "mean") %>%
+                            as_tibble() %>%
+                            mutate(
+                                percentual_forest_cover = layer
+                            ) %>%
+                                inner_join(
+                                    kanton_number_keys,
+                                    by = join_by(kantonsnummer == kantonsnummer)
+                                ) %>%
+                                    select(!c(layer, kantonsnummer)) %>%
+                                    arrange(desc(percentual_forest_cover))
+
+forest_are_per_canton
+```
+
+Now let's measure this with tictoc. In order to perform a fair comparison, the rasterization step must be included in the timing. This also means we need to be aware that the comparison carries some subjectiveness: the cell size is set externally and different values are valid. For small cell sizes the raster-based workflow may be slower, while for larger ones it may be faster. Therefore, for a proper comparison, the accuracy of the result also needs to be taken into consideration.
+
+```{r}
+
+tictoc::tic()
+
+template_canton <- rast(
+  extent = ext(canton_polygons),   # takes extent from your vector
+  resolution = 100,        # set your desired resolution (in map units, e.g. meters)
+  crs = crs(canton_polygons)        # same CRS as your vector
+)
+
+canton_raster <- rasterize( canton_polygons,template_canton, field = "kantonsnummer")
+
+
+
+forest_polygons <- land_use_polygons[land_use_polygons$objektart == "Wald"]
+
+
+forest_template <- rast(
+  extent = ext(canton_polygons),   # extent of canton polygons
+  resolution = 100,        # set your desired resolution (in map units, e.g. meters)
+  crs = crs(canton_polygons)        # crs of canton polygons
+)
+
+# All forested areas get the value 100, all other areas get 0.
+forest_raster <- rasterize(forest_polygons, forest_template, field = 100, background = 0)
+
+
+kanton_number_keys <- canton_polygons %>% as.data.frame() %>%
+    select(name, kantonsnummer)
+
+
+forest_are_per_canton <- zonal(forest_raster, canton_raster, fun = "mean") %>%
+                            as_tibble() %>%
+                            mutate(
+                                percentual_forest_cover = layer
+                            ) %>%
+                                inner_join(
+                                    kanton_number_keys,
+                                    by = join_by(kantonsnummer == kantonsnummer)
+                                ) %>%
+                                    select(!c(layer, kantonsnummer)) %>%
+                                    arrange(desc(percentual_forest_cover))
+
+
+tictoc::toc()
+
+
+```
+
+
+
+
+## Task 2
+
+1. Redo `Task 1` from *Vector Deepdive*. However, this time use `gdal` from the command line to do the processing. Note that you can use `bash` commands in quarto, you just have to
+   - set the language to `{bash}` in the code chunk and
+   - the `engine` to `knitr` in the YAML header
+2. Again, use the R package `tictoc` to measure the execute time of each step in the process. To measure the execution time of bash commands, you can use the approach shown below (which is a bit of a workaround since tictoc was made for R, not Bash commands)
+3. Compare the execution times of all approaches (`sf`, `duckdb`, `terra`, `gdal`). How do they differ?
+
+## Solution 2
+
+---
+
+For this exercise I first created a conda environment and installed GDAL.
+
+```{bash}
+#| eval: false
+
+# Create the environment
+conda create -n gdal_environment
+```
+
+```{bash}
+# Activate the environment
+conda activate gdal_environment
+```
+
+
+```{bash}
+#| eval: false
+# Install GDAL
+conda install -c conda-forge gdal
+```
+
+
+### Rasterizing Canton Polygons
+
+Analogous to Task 1, I first rasterize the canton polygons, again using a 100m × 100m cell size to keep the terra and GDAL workflows comparable. GDAL processes data in a streaming fashion, so the input and output files must be explicitly specified via `--input` and `--output`. The `-a` flag defines the attribute field from which burn-in values are taken — in our case, the cantonal number. The `-l` flag specifies which layer from the GeoPackage should be read.
+
+
+```{bash}
+
+gdal vector rasterize -l tlm_kantonsgebiet \
+        --resolution 100,100 \
+        --input ./data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg \
+        -a kantonsnummer \
+        --overwrite \
+        --output ./data/kantone_raster
+```
+
+
+### Rasterizing Forest Polygons
+
+The forest polygons also need to be rasterized, again at 100m × 100m resolution to keep the workflows comparable. As the burn-in value I am picking 100, so that calling `mean` in the zonal statistics step directly yields the percentage forest cover. Areas not covered by a forest polygon are initialized to 0. GDAL treats 0 as the default NoData value, which would be ignored in statistical aggregations. This is problematic here, since 0 carries a vital meaning in our calculation. To work around this, I set the NoData value to 255.
+
+
+```{bash}
+gdal vector rasterize --where "objektart='Wald'" \
+        -l tlm_bb_bodenbedeckung \
+        --resolution 100,100 \
+        --input ./data/SWISSTLM3D_2025.gpkg \
+        --overwrite \
+        --nodata 255 \
+        --init 0 \
+        --burn 100 \
+        --output ./data/forest_raster_cent
+```
+
+### Calculation of Percentage Forest Cover
+
+The new GDAL API also features a function for zonal operations. Under `--input`, the raster to aggregate is passed. Under `--zones`, the raster providing the zones is passed. `--stat` defines the aggregation function — mean is the correct choice here for the reasons explained above. The output is in tabular format with one aggregated value per zone, stored as a CSV.
+
+
+```{bash}
+gdal raster zonal-stats --input ./data/forest_raster_cent \
+        --zones ./data/kantone_raster \
+        --stat=mean \
+        --overwrite \
+        --output ./data/cantonal_forest_percent.csv
+```
+
+
+Lastly, to make interpretation easier, the canton names can be joined into the resulting CSV. For this, `gdal vector sql` can be used — it conveniently allows SQL queries across tabular data from different file types.
+
+
+```{bash}
+gdal vector sql \
+    --input ./data/cantonal_forest_percent.csv \
+    --dialect sqlite \
+    --sql "SELECT z.value AS kantonsnummer, k.name, z.mean
+           FROM cantonal_forest_percent z
+           JOIN './data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg'.tlm_kantonsgebiet k
+           ON CAST(z.value AS INTEGER) = k.kantonsnummer
+           ORDER BY z.mean DESC" \
+    --format CSV \
+    --output final_analysis_results.csv
+
+cat final_analysis_results.csv
+
+```
+
+### Performing Timing
+
+As already mentioned in the task description, timing is not straightforward here since tictoc is an R library. The workaround is to wrap the bash block containing all commands between two R chunks calling `tic()` and `toc()`.
+
+```{r}
+tictoc::tic()
+```
+
+
+```{bash}
+
+
+gdal vector rasterize -l tlm_kantonsgebiet \
+        --resolution 100,100 \
+        --input ./data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg \
+        -a kantonsnummer \
+        --overwrite \
+        --output ./data/kantone_raster
+
+gdal vector rasterize --where "objektart='Wald'" \
+        -l tlm_bb_bodenbedeckung \
+        --resolution 100,100 \
+        --input ./data/SWISSTLM3D_2025.gpkg \
+        --overwrite \
+        --nodata 255 \
+        --init 0 \
+        --burn 100 \
+        --output ./data/forest_raster_cent
+
+gdal raster zonal-stats --input ./data/forest_raster_cent \
+        --zones ./data/kantone_raster \
+        --stat=mean \
+        --overwrite \
+        --output ./data/cantonal_forest_percent.csv
+
+gdal vector sql \
+    --input ./data/cantonal_forest_percent.csv \
+    --dialect sqlite \
+    --sql "SELECT z.value AS kantonsnummer, k.name, z.mean
+           FROM cantonal_forest_percent z
+           JOIN './data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg'.tlm_kantonsgebiet k
+           ON CAST(z.value AS INTEGER) = k.kantonsnummer
+           ORDER BY z.mean DESC" \
+    --format CSV \
+    --output final_analysis_results.csv
+
+cat final_analysis_results.csv
+
+```
+
+```{r}
+tictoc::toc()
+```
+
+
+### Speed Comparison
+
+To complete the comparison, here are the timings for the `sf` and DuckDB approaches from the previous exercise.
+
+**sf**
+
+```{r}
+
+canton_polygons <- st_read(
+  "./data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg",
+  layer = "tlm_kantonsgebiet"
+)
+
+# and also the ground cover polygons
+ground_cover_polygons <- st_read(
+  "./data/SWISSTLM3D_2025.gpkg",
+  layer = "tlm_bb_bodenbedeckung"
+)
+
+tictoc::tic("Base R Computation")
+
+forest_polygons <- ground_cover_polygons %>%
+  filter(objektart == "Wald")
+
+forest_in_cantons <- forest_polygons %>%
+  st_intersection(canton_polygons) %>%
+  mutate(
+    forest_area = st_area(geom)
+  ) %>%
+  group_by(name) %>%
+  summarise(
+    total_forest_area = sum(forest_area)
+  )
+
+percentual_forest_per_canton <- canton_polygons %>%
+  mutate(
+    cantonal_area = st_area(geom)
+  ) %>%
+  left_join(
+    st_drop_geometry(forest_in_cantons),
+    by = "name"
+    ) %>%
+  mutate(
+    forest_pct = as.numeric(total_forest_area / cantonal_area) * 100
+  )
+
+tictoc::toc()
+
+
+
+```
+
+**DuckDB**
+
+```{r}
+
+con <- dbConnect(
+  duckdb(),
+  dbdir = "./../vector-deepdive/data/wald-kantone.duckdb",
+  read_only = TRUE
+)
+
+dbExecute(con, "LOAD spatial;")
+
+tictoc::tic("DuckDB Computation")
+canton_frac <- dbReadTable(con, "cantonal_forest_fractions")
+tictoc::toc()
+
+print(canton_frac)
+
+
+```
+
+
+In terms of speed, the two raster-based workflows (GDAL and terra) are clearly faster, performing the same analysis in a fraction of the time. This result has to be taken with a grain of salt, however. Through rasterization we lose precision, which might be important in a given project. To obtain more precise results, one would need to choose smaller cell sizes, which in turn increases compute time and narrows the speed gap with the vector-based approaches. So the speed advantage at least partially stems from a trade-off with accuracy: if we are not willing to accept that trade-off, the advantage will likely decrease.
+
+## Bonus: GDAL Pipeline
+
+One potential disadvantage of the GDAL workflow above is that intermediate results are written to disk and read back multiple times: once for the canton raster, once for the forest raster, and once for the zonal statistics CSV. Reading from and writing to disk is considerably more expensive in terms of time than keeping data in memory. GDAL addresses this with its `pipeline` command, which chains multiple operations so that intermediate results are passed directly in memory rather than being written to disk.
+
+The pipeline below chains reading, rasterizing, and computing zonal statistics in a single command. The canton rasterization is even nested inline as the zones argument, so it too never touches disk. Only the final CSV result needs to be written to a file, because the CSV driver requires a seekable file and cannot read from a pipe.
+
+```{r}
+tictoc::tic("GDAL Pipeline")
+```
+
+```{bash}
+gdal pipeline \
+  ! read ./data/SWISSTLM3D_2025.gpkg \
+  ! rasterize \
+      --input-layer tlm_bb_bodenbedeckung \
+      --where "objektart='Wald'" \
+      --burn 100 --init 0 --nodata 255 \
+      --resolution 100,100 \
+  ! zonal-stats \
+      --zones [ read ./data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg \
+                ! rasterize --resolution 100,100 \
+                -a kantonsnummer -l tlm_kantonsgebiet ] \
+      --stat mean \
+  ! write --output-format CSV \
+          --output /tmp/forest_stats.csv \
+          --overwrite
+
+gdal vector sql \
+  --dialect sqlite \
+  --sql "SELECT z.value AS kantonsnummer, k.name, z.mean
+         FROM forest_stats z
+         JOIN './data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg'.tlm_kantonsgebiet k
+           ON CAST(z.value AS INTEGER) = k.kantonsnummer
+         WHERE z.value != '0'
+         ORDER BY z.mean DESC" \
+  --format CSV \
+  /tmp/forest_stats.csv \
+  /vsistdout/
+```
+
+```{r}
+tictoc::toc()
+```
+
+# Usage of KI
+
+Claude Sonnet (Anthropic) was used as an aid for this exercise. It was used to review the submitted document, identify and fix inconsistencies in file naming across code chunks, add the required `_quarto.yml` configuration and YAML front matter, and perform spell-checking and formatting of the written explanations. Furthermore, it was used to convert the algebraic derivation to LaTeX, and to add the bonus section on GDAL pipelines.
