@@ -310,6 +310,7 @@ gdal vector sql \
            ON CAST(z.value AS INTEGER) = k.kantonsnummer
            ORDER BY z.mean DESC" \
     --format CSV \
+    --overwrite \
     --output final_analysis_results.csv
 
 cat final_analysis_results.csv
@@ -448,50 +449,6 @@ print(canton_frac)
 
 In terms of speed, the two raster-based workflows (GDAL and terra) are clearly faster, performing the same analysis in a fraction of the time. This result has to be taken with a grain of salt, however. Through rasterization we lose precision, which might be important in a given project. To obtain more precise results, one would need to choose smaller cell sizes, which in turn increases compute time and narrows the speed gap with the vector-based approaches. So the speed advantage at least partially stems from a trade-off with accuracy: if we are not willing to accept that trade-off, the advantage will likely decrease.
 
-## Bonus: GDAL Pipeline
-
-One potential disadvantage of the GDAL workflow above is that intermediate results are written to disk and read back multiple times: once for the canton raster, once for the forest raster, and once for the zonal statistics CSV. Reading from and writing to disk is considerably more expensive in terms of time than keeping data in memory. GDAL addresses this with its `pipeline` command, which chains multiple operations so that intermediate results are passed directly in memory rather than being written to disk.
-
-The pipeline below chains reading, rasterizing, and computing zonal statistics in a single command. The canton rasterization is even nested inline as the zones argument, so it too never touches disk. Only the final CSV result needs to be written to a file, because the CSV driver requires a seekable file and cannot read from a pipe.
-
-```{r}
-tictoc::tic("GDAL Pipeline")
-```
-
-```{bash}
-gdal pipeline \
-  ! read ./data/SWISSTLM3D_2025.gpkg \
-  ! rasterize \
-      --input-layer tlm_bb_bodenbedeckung \
-      --where "objektart='Wald'" \
-      --burn 100 --init 0 --nodata 255 \
-      --resolution 100,100 \
-  ! zonal-stats \
-      --zones [ read ./data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg \
-                ! rasterize --resolution 100,100 \
-                -a kantonsnummer -l tlm_kantonsgebiet ] \
-      --stat mean \
-  ! write --output-format CSV \
-          --output /tmp/forest_stats.csv \
-          --overwrite
-
-gdal vector sql \
-  --dialect sqlite \
-  --sql "SELECT z.value AS kantonsnummer, k.name, z.mean
-         FROM forest_stats z
-         JOIN './data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg'.tlm_kantonsgebiet k
-           ON CAST(z.value AS INTEGER) = k.kantonsnummer
-         WHERE z.value != '0'
-         ORDER BY z.mean DESC" \
-  --format CSV \
-  /tmp/forest_stats.csv \
-  /vsistdout/
-```
-
-```{r}
-tictoc::toc()
-```
-
 # Usage of KI
 
-Claude Sonnet (Anthropic) was used as an aid for this exercise. It was used to review the submitted document, identify and fix inconsistencies in file naming across code chunks, add the required `_quarto.yml` configuration and YAML front matter, and perform spell-checking and formatting of the written explanations. Furthermore, it was used to convert the algebraic derivation to LaTeX, and to add the bonus section on GDAL pipelines.
+Claude Sonnet (Anthropic) was used as an aid for this exercise. It was used to review the submitted document, identify and fix inconsistencies in file naming across code chunks, add the required `_quarto.yml` configuration and YAML front matter, and perform spell-checking and formatting of the written explanations. Furthermore, it was used to convert the algebraic derivation to LaTeX.
