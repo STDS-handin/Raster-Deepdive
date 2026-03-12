@@ -33,9 +33,10 @@ library(sf)
 ```{r}
 #| include: false
 
-# Make the conda gdal_environment available to all bash chunks
-knitr::opts_chunk$set(engine.env = list(
-  PATH = paste0("/home/etienne/miniforge3/envs/gdal_environment/bin", ":", Sys.getenv("PATH"))
+# Add the conda gdal_environment to PATH so all bash chunks can call gdal
+Sys.setenv(PATH = paste0(
+  "/home/etienne/miniforge3/envs/gdal_environment/bin", ":",
+  Sys.getenv("PATH")
 ))
 
 ```
