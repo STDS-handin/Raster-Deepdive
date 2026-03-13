@@ -4046,6 +4046,8 @@ window.Quarto = {
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(duckdb)</span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(sf)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
+<section id="loading-the-data" class="level3">
+<h3 class="anchored" data-anchor-id="loading-the-data">Loading the Data</h3>
 <p>With <code>terra::vect()</code>, GeoPackages can be read in. Using the <code>layer</code> argument, we can specify which layer should be read from the GeoPackage. For the cantonal boundaries we need <code>tlm_kantonsgebiet</code>, and for the land-use data we need <code>tlm_bb_bodenbedeckung</code>.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>canton_polygons <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">vect</span>(<span class="st">&quot;data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg&quot;</span>, <span class="at">layer =</span> <span class="st">&quot;tlm_kantonsgebiet&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -4059,6 +4061,9 @@ window.Quarto = {
 <pre><code>Warning: [vect] Z coordinates ignored</code></pre>
 </div>
 </div>
+</section>
+<section id="quick-visual-check" class="level3">
+<h3 class="anchored" data-anchor-id="quick-visual-check">Quick Visual Check</h3>
 <p>Let’s get a quick visual confirmation that we imported reasonable things. We can do this using some quick-and-dirty plotting — terra works well with the standard <code>plot()</code> function.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(canton_polygons)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -4078,6 +4083,9 @@ window.Quarto = {
 </div>
 </div>
 </div>
+</section>
+<section id="rasterizing-canton-polygons" class="level3">
+<h3 class="anchored" data-anchor-id="rasterizing-canton-polygons">Rasterizing Canton Polygons</h3>
 <p>Theoretically, terra also features some support for manipulating vector data. However, since this is a raster deepdive, I decided to rasterize the vector data at this point and carry out the analysis purely using raster operations.</p>
 <p>Rasterizing requires a raster as a blueprint for the conversion. From it, attributes such as the cell size and CRS are taken. We can create such a template raster quite easily: I will create one with the extent and the coordinate system of the respective vector data. The resolution I have to set myself — I am going with a 100-metre cell size. Generally, the smaller the cell size, the smaller the quantization error from vector to raster data, but compute time also increases.</p>
 <div class="cell">
@@ -4099,6 +4107,9 @@ window.Quarto = {
 </div>
 </div>
 </div>
+</section>
+<section id="rasterizing-forest-polygons" class="level3">
+<h3 class="anchored" data-anchor-id="rasterizing-forest-polygons">Rasterizing Forest Polygons</h3>
 <p>For the land-use data, we need to be aware that land-use polygons can overlap. This causes problems when rasterizing, because each cell can only hold one value. The easiest way to handle this is to apply a filter operation on the polygons before rasterization — so in the end, some vector manipulation is still required. The <code>field</code> parameter sets the burn-in value for the raster. I am choosing 100 here, as this will make the calculation of the percentage forest cover very easy in a later step. For areas where no forest polygon lies, I assign the value 0.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>forest_polygons <span class="ot">&lt;-</span> land_use_polygons[land_use_polygons<span class="sc">$</span>objektart <span class="sc">==</span> <span class="st">&quot;Wald&quot;</span>]</span>
@@ -4122,6 +4133,9 @@ window.Quarto = {
 </div>
 </div>
 </div>
+</section>
+<section id="calculating-percentage-forest-cover" class="level3">
+<h3 class="anchored" data-anchor-id="calculating-percentage-forest-cover">Calculating Percentage Forest Cover</h3>
 <p>Now, in order to get the forest coverage per canton, we can perform a zonal operation. The forest raster has only two distinct values: 100 for forest pixels and 0 for non-forest pixels. Due to this, we can calculate the percentage of cantonal area covered by forest rather easily by applying the mean function to every canton zone.</p>
 <p>Calculating the mean of the forest raster performs the following operation:</p>
 <p><span class="math display">\[
@@ -4168,6 +4182,9 @@ window.Quarto = {
 # ℹ 16 more rows</code></pre>
 </div>
 </div>
+</section>
+<section id="performing-timing" class="level3">
+<h3 class="anchored" data-anchor-id="performing-timing">Performing Timing</h3>
 <p>Now let’s measure this with tictoc. In order to perform a fair comparison, the rasterization step must be included in the timing. To make the comparison with GDAL fair, the data reading step is also included — GDAL has to read from disk on every run. This also means we need to be aware that the comparison carries some subjectiveness: the cell size is set externally and different values are valid. For small cell sizes the raster-based workflow may be slower, while for larger ones it may be faster. Therefore, for a proper comparison, the accuracy of the result also needs to be taken into consideration.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">tic</span>(<span class="st">&quot;terra&quot;</span>)</span>
@@ -4222,9 +4239,10 @@ window.Quarto = {
 <span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>terra: 16.7 sec elapsed</code></pre>
+<pre><code>terra: 17.665 sec elapsed</code></pre>
 </div>
 </div>
+</section>
 </section>
 <section id="task-2" class="level2">
 <h2 class="anchored" data-anchor-id="task-2">Task 2</h2>
@@ -4254,8 +4272,8 @@ window.Quarto = {
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Install GDAL</span></span>
 <span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> install <span class="at">-c</span> conda-forge gdal</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
-<section id="rasterizing-canton-polygons" class="level3">
-<h3 class="anchored" data-anchor-id="rasterizing-canton-polygons">Rasterizing Canton Polygons</h3>
+<section id="rasterizing-canton-polygons-1" class="level3">
+<h3 class="anchored" data-anchor-id="rasterizing-canton-polygons-1">Rasterizing Canton Polygons</h3>
 <p>Analogous to Task 1, I first rasterize the canton polygons, again using a 100m × 100m cell size to keep the terra and GDAL workflows comparable. GDAL processes data in a streaming fashion, so the input and output files must be explicitly specified via <code>--input</code> and <code>--output</code>. The <code>-a</code> flag defines the attribute field from which burn-in values are taken — in our case, the cantonal number. The <code>-l</code> flag specifies which layer from the GeoPackage should be read.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="ex">gdal</span> vector rasterize <span class="at">-l</span> tlm_kantonsgebiet <span class="dt">\</span></span>
@@ -4266,8 +4284,8 @@ window.Quarto = {
 <span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>        <span class="at">--output</span> ./data/kantone_raster</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
-<section id="rasterizing-forest-polygons" class="level3">
-<h3 class="anchored" data-anchor-id="rasterizing-forest-polygons">Rasterizing Forest Polygons</h3>
+<section id="rasterizing-forest-polygons-1" class="level3">
+<h3 class="anchored" data-anchor-id="rasterizing-forest-polygons-1">Rasterizing Forest Polygons</h3>
 <p>The forest polygons also need to be rasterized, again at 100m × 100m resolution to keep the workflows comparable. As the burn-in value I am picking 100, so that calling <code>mean</code> in the zonal statistics step directly yields the percentage forest cover. Areas not covered by a forest polygon are initialized to 0. GDAL treats 0 as the default NoData value, which would be ignored in statistical aggregations. This is problematic here, since 0 carries a vital meaning in our calculation. To work around this, I set the NoData value to 255.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="ex">gdal</span> vector rasterize <span class="at">--where</span> <span class="st">&quot;objektart=&#39;Wald&#39;&quot;</span> <span class="dt">\</span></span>
@@ -4338,8 +4356,8 @@ kantonsnummer,name,mean
 </div>
 </div>
 </section>
-<section id="performing-timing" class="level3">
-<h3 class="anchored" data-anchor-id="performing-timing">Performing Timing</h3>
+<section id="performing-timing-1" class="level3">
+<h3 class="anchored" data-anchor-id="performing-timing-1">Performing Timing</h3>
 <p>As already mentioned in the task description, timing is not straightforward here since tictoc is an R library. The workaround is to wrap the bash block containing all commands between two R chunks calling <code>tic()</code> and <code>toc()</code>.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">tic</span>(<span class="st">&quot;GDAL&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -4383,7 +4401,7 @@ kantonsnummer,name,mean
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>GDAL: 4.208 sec elapsed</code></pre>
+<pre><code>GDAL: 4.796 sec elapsed</code></pre>
 </div>
 </div>
 </section>
@@ -4452,7 +4470,7 @@ Projected CRS: CH1903+ / LV95</code></pre>
 <span id="cb34-27"><a href="#cb34-27" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb34-28"><a href="#cb34-28" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>sf: 417.047 sec elapsed</code></pre>
+<pre><code>sf: 454.635 sec elapsed</code></pre>
 </div>
 </div>
 <p><strong>DuckDB</strong></p>
@@ -4469,7 +4487,7 @@ Projected CRS: CH1903+ / LV95</code></pre>
 <span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>canton_frac <span class="ot">&lt;-</span> <span class="fu">dbReadTable</span>(con, <span class="st">&quot;cantonal_forest_fractions&quot;</span>)</span>
 <span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>DuckDB: 166.471 sec elapsed</code></pre>
+<pre><code>DuckDB: 133.82 sec elapsed</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(canton_frac)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
