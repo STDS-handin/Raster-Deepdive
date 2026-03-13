@@ -21,3 +21,5 @@ final_analysis_results.csv
 
 # Personal/temp files
 meeting_anto.txt
+
+**/*.quarto_ipynb

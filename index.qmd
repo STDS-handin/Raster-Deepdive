@@ -44,12 +44,17 @@ Sys.setenv(
 ```
 
 
+### Loading the Data
+
 With `terra::vect()`, GeoPackages can be read in. Using the `layer` argument, we can specify which layer should be read from the GeoPackage. For the cantonal boundaries we need `tlm_kantonsgebiet`, and for the land-use data we need `tlm_bb_bodenbedeckung`.
 
 ```{r}
 #| message: false
 
-canton_polygons <- terra::vect("data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg", layer = "tlm_kantonsgebiet")
+canton_polygons <- terra::vect(
+  "data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg", 
+  layer = "tlm_kantonsgebiet"
+  )
 
 
 ```
@@ -60,9 +65,14 @@ canton_polygons <- terra::vect("data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg", laye
 ```{r}
 #| message: false
 
-land_use_polygons <- terra::vect("data/SWISSTLM3D_2025.gpkg", layer = "tlm_bb_bodenbedeckung")
+land_use_polygons <- terra::vect(
+  "data/SWISSTLM3D_2025.gpkg",
+  layer = "tlm_bb_bodenbedeckung"
+  )
 
 ```
+
+### Quick Visual Check
 
 Let's get a quick visual confirmation that we imported reasonable things. We can do this using some quick-and-dirty plotting — terra works well with the standard `plot()` function.
 
@@ -74,20 +84,22 @@ plot(land_use_polygons)
 ```
 
 
+### Rasterizing Canton Polygons
+
 Theoretically, terra also features some support for manipulating vector data. However, since this is a raster deepdive, I decided to rasterize the vector data at this point and carry out the analysis purely using raster operations.
 
-Rasterizing requires a raster as a blueprint for the conversion. From it, attributes such as the cell size and CRS are taken. We can create such a template raster quite easily: I will create one with the extent and the coordinate system of the respective vector data. The resolution I have to set myself — I am going with a 100-metre cell size. Generally, the smaller the cell size, the smaller the quantization error from vector to raster data, but compute time also increases.
+Rasterizing requires a raster as a blueprint for the conversion. From it, attributes such as the cell size and CRS are taken. We can create such a template raster quite easily: I will create one with the extent and the coordinate system of the respective vector data. The resolution is generally open to the user to choose. I am going with a 100m cell size. Generally, the smaller the cell size, the smaller the quantization error from vector to raster data, but compute time also increases.
 
 
 ```{r}
 
 template_canton <- rast(
-  extent = ext(canton_polygons),   # takes extent from your vector
-  resolution = 100,        # set your desired resolution (in map units, e.g. meters)
-  crs = crs(canton_polygons)        # same CRS as your vector
+  extent = ext(canton_polygons),   # take the extend from the canton polygon dataset
+  resolution = 100,        # set the resolution of the raster (here 100m x 100m)
+  crs = crs(canton_polygons)        # same CRS as the canton polygons
 )
 
-canton_raster <- rasterize( canton_polygons,template_canton, field = "kantonsnummer")
+canton_raster <- rasterize(canton_polygons,template_canton, field = "kantonsnummer")
 
 
 plot(canton_raster)
@@ -98,7 +110,9 @@ plot(canton_raster)
 ```
 
 
-For the land-use data, we need to be aware that land-use polygons can overlap. This causes problems when rasterizing, because each cell can only hold one value. The easiest way to handle this is to apply a filter operation on the polygons before rasterization — so in the end, some vector manipulation is still required. The `field` parameter sets the burn-in value for the raster. I am choosing 100 here, as this will make the calculation of the percentage forest cover very easy in a later step. For areas where no forest polygon lies, I assign the value 0.
+### Rasterizing Forest Polygons
+
+For the land-use data, we need to be aware that land-use polygons can overlap. This causes problems when rasterizing, because each cell can only hold one value. The easiest way to handle this is to apply a filter operation on the polygons before rasterization. (So in the end, I still had to do some vector data manipulation). The `field` parameter sets the burn-in value for the raster. I am choosing 100 here, as this will make the calculation of the percentage forest cover very easy in a later step. For areas where no forest polygon lies, I assign the value 0.
 
 ```{r}
 
@@ -106,9 +120,9 @@ forest_polygons <- land_use_polygons[land_use_polygons$objektart == "Wald"]
 
 
 forest_template <- rast(
-  extent = ext(canton_polygons),   # extent of canton polygons
-  resolution = 100,        # set your desired resolution (in map units, e.g. meters)
-  crs = crs(canton_polygons)        # crs of canton polygons
+  extent = ext(canton_polygons),    # take the extend from the canton polygon dataset
+  resolution = 100,        # set the resolution of the raster (here 100m x 100m)
+  crs = crs(canton_polygons)        # same CRS as the canton polygons
 )
 
 # All forested areas get the value 100, all other areas get 0.
@@ -116,6 +130,10 @@ forest_raster <- rasterize(forest_polygons, forest_template, field = 100, backgr
 
 plot(forest_raster)
 ```
+
+(**Note** : I'm also taking the extend of the canton polygons here, even tough I am rasterising the forest polygons. This will make the `zonal statistics` step easier. Terra is very strict when it comes to extends, and `zonal operations (and many other functionallities) only work, if all the input rasters have the same extent)
+
+### Calculating Percentage Forest Cover
 
 Now, in order to get the forest coverage per canton, we can perform a zonal operation. The forest raster has only two distinct values: 100 for forest pixels and 0 for non-forest pixels. Due to this, we can calculate the percentage of cantonal area covered by forest rather easily by applying the mean function to every canton zone.
 
@@ -132,27 +150,32 @@ $$
 
 So the mean directly gives the percentage forest cover for every canton.
 
+
 ```{r}
+
+# get the kanton numbers and their corresponding names (for the join later on)
 kanton_number_keys <- canton_polygons %>% as.data.frame() %>%
     select(name, kantonsnummer)
 
-
+# Compute the forest coverage using zonal operations
 forest_are_per_canton <- zonal(forest_raster, canton_raster, fun = "mean") %>%
                             as_tibble() %>%
                             mutate(
                                 percentual_forest_cover = layer
                             ) %>%
-                                inner_join(
-                                    kanton_number_keys,
-                                    by = join_by(kantonsnummer == kantonsnummer)
+                              inner_join(
+                                kanton_number_keys,
+                                by = join_by(kantonsnummer == kantonsnummer)
                                 ) %>%
-                                    select(!c(layer, kantonsnummer)) %>%
-                                    arrange(desc(percentual_forest_cover))
+                                  select(!c(layer, kantonsnummer)) %>%
+                                  arrange(desc(percentual_forest_cover))
 
 forest_are_per_canton
 ```
 
-Now let's measure this with tictoc. In order to perform a fair comparison, the rasterization step must be included in the timing. To make the comparison with GDAL fair, the data reading step is also included — GDAL has to read from disk on every run. This also means we need to be aware that the comparison carries some subjectiveness: the cell size is set externally and different values are valid. For small cell sizes the raster-based workflow may be slower, while for larger ones it may be faster. Therefore, for a proper comparison, the accuracy of the result also needs to be taken into consideration.
+### Performing Timing
+
+Now let's measure this with tictoc. To make later comparison with GDAL fair, the data reading step is also included. (Technically, writing the resulting raster should also be included here, as GDAL has to do this step too).
 
 ```{r}
 #| message: false
@@ -206,8 +229,6 @@ tictoc::toc()
 
 
 ```
-
-
 
 
 ## Task 2
@@ -451,13 +472,13 @@ print(canton_frac)
 
 #### GDAL vs. terra
 
-The GDAL workflow is the fastest of all approaches, beating the terra workflow by a factor of approximately 4×. This is rather surprising, because GDAL reads from and writes to disk multiple times during its workflow. I had always assumed that, due to a concept known as the [Zugriffslücke](https://wwwlehre.dhbw-stuttgart.de/~kfg/db/dbMA.pdf) — the large performance gap between memory and disk access — such workflows should carry a severe disadvantage. So what causes the speed difference between `GDAL` and `terra`? It might be that there is some additional overhead caused by `R` resulting in slower exection speed in `terra`.
+The GDAL workflow is the fastest of all approaches, beating the terra workflow by a factor of approximately 4×. Was rather surprising to me, because GDAL reads from and writes to disk multiple times during its workflow. I had always assumed that, due to a concept known as the [Zugriffslücke](https://wwwlehre.dhbw-stuttgart.de/~kfg/db/dbMA.pdf) — the large performance gap between memory and disk access — such workflows should carry a severe disadvantage. So what causes the speed difference between `GDAL` and `terra`? It might be that there is some additional overhead caused by `R` resulting in slower exection speed in `terra`, but ultimately I do not know.
 
 #### Raster-based vs. vector-based
 
 In terms of speed, both raster-based workflows (GDAL and terra) are clearly faster than the vector-based ones, performing the same analysis in a fraction of the time.
 
-This result has to be taken with a grain of salt regardless. Through rasterization we lose precision, which might be important in a given project. To obtain more precise results, one would need to choose smaller cell sizes, which in turn increases compute time and narrows the speed gap with the vector-based approaches. So the speed advantage at least partially stems from a trade-off with accuracy: if we are not willing to accept that trade-off, the advantage will likely decrease.
+This result has to be taken with a grain of salt however. Through rasterization we lose precision, which might be important in a given project. To obtain more precise results, one would need to choose smaller cell sizes, which in turn increases compute time and narrows the speed gap with the vector-based approaches. So the speed advantage at least partially stems from a trade-off with accuracy.
 
 # Usage of KI
 
