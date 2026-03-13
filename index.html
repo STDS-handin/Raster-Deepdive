@@ -4050,13 +4050,19 @@ window.Quarto = {
 <h3 class="anchored" data-anchor-id="loading-the-data">Loading the Data</h3>
 <p>With <code>terra::vect()</code>, GeoPackages can be read in. Using the <code>layer</code> argument, we can specify which layer should be read from the GeoPackage. For the cantonal boundaries we need <code>tlm_kantonsgebiet</code>, and for the land-use data we need <code>tlm_bb_bodenbedeckung</code>.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>canton_polygons <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">vect</span>(<span class="st">&quot;data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg&quot;</span>, <span class="at">layer =</span> <span class="st">&quot;tlm_kantonsgebiet&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>canton_polygons <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">vect</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg&quot;</span>, </span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">layer =</span> <span class="st">&quot;tlm_kantonsgebiet&quot;</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Warning: [vect] Z coordinates ignored</code></pre>
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>land_use_polygons <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">vect</span>(<span class="st">&quot;data/SWISSTLM3D_2025.gpkg&quot;</span>, <span class="at">layer =</span> <span class="st">&quot;tlm_bb_bodenbedeckung&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>land_use_polygons <span class="ot">&lt;-</span> terra<span class="sc">::</span><span class="fu">vect</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;data/SWISSTLM3D_2025.gpkg&quot;</span>,</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">layer =</span> <span class="st">&quot;tlm_bb_bodenbedeckung&quot;</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  )</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stderr">
 <pre><code>Warning: [vect] Z coordinates ignored</code></pre>
 </div>
@@ -4087,15 +4093,15 @@ window.Quarto = {
 <section id="rasterizing-canton-polygons" class="level3">
 <h3 class="anchored" data-anchor-id="rasterizing-canton-polygons">Rasterizing Canton Polygons</h3>
 <p>Theoretically, terra also features some support for manipulating vector data. However, since this is a raster deepdive, I decided to rasterize the vector data at this point and carry out the analysis purely using raster operations.</p>
-<p>Rasterizing requires a raster as a blueprint for the conversion. From it, attributes such as the cell size and CRS are taken. We can create such a template raster quite easily: I will create one with the extent and the coordinate system of the respective vector data. The resolution I have to set myself — I am going with a 100-metre cell size. Generally, the smaller the cell size, the smaller the quantization error from vector to raster data, but compute time also increases.</p>
+<p>Rasterizing requires a raster as a blueprint for the conversion. From it, attributes such as the cell size and CRS are taken. We can create such a template raster quite easily: I will create one with the extent and the coordinate system of the respective vector data. The resolution is generally open to the user to choose. I am going with a 100m cell size. Generally, the smaller the cell size, the smaller the quantization error from vector to raster data, but compute time also increases.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>template_canton <span class="ot">&lt;-</span> <span class="fu">rast</span>(</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">extent =</span> <span class="fu">ext</span>(canton_polygons),   <span class="co"># takes extent from your vector</span></span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">resolution =</span> <span class="dv">100</span>,        <span class="co"># set your desired resolution (in map units, e.g. meters)</span></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">crs =</span> <span class="fu">crs</span>(canton_polygons)        <span class="co"># same CRS as your vector</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">extent =</span> <span class="fu">ext</span>(canton_polygons),   <span class="co"># take the extend from the canton polygon dataset</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">resolution =</span> <span class="dv">100</span>,        <span class="co"># set the resolution of the raster (here 100m x 100m)</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">crs =</span> <span class="fu">crs</span>(canton_polygons)        <span class="co"># same CRS as the canton polygons</span></span>
 <span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>canton_raster <span class="ot">&lt;-</span> <span class="fu">rasterize</span>( canton_polygons,template_canton, <span class="at">field =</span> <span class="st">&quot;kantonsnummer&quot;</span>)</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>canton_raster <span class="ot">&lt;-</span> <span class="fu">rasterize</span>(canton_polygons,template_canton, <span class="at">field =</span> <span class="st">&quot;kantonsnummer&quot;</span>)</span>
 <span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(canton_raster)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -4110,15 +4116,15 @@ window.Quarto = {
 </section>
 <section id="rasterizing-forest-polygons" class="level3">
 <h3 class="anchored" data-anchor-id="rasterizing-forest-polygons">Rasterizing Forest Polygons</h3>
-<p>For the land-use data, we need to be aware that land-use polygons can overlap. This causes problems when rasterizing, because each cell can only hold one value. The easiest way to handle this is to apply a filter operation on the polygons before rasterization — so in the end, some vector manipulation is still required. The <code>field</code> parameter sets the burn-in value for the raster. I am choosing 100 here, as this will make the calculation of the percentage forest cover very easy in a later step. For areas where no forest polygon lies, I assign the value 0.</p>
+<p>For the land-use data, we need to be aware that land-use polygons can overlap. This causes problems when rasterizing, because each cell can only hold one value. The easiest way to handle this is to apply a filter operation on the polygons before rasterization. (So in the end, I still had to do some vector data manipulation). The <code>field</code> parameter sets the burn-in value for the raster. I am choosing 100 here, as this will make the calculation of the percentage forest cover very easy in a later step. For areas where no forest polygon lies, I assign the value 0.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>forest_polygons <span class="ot">&lt;-</span> land_use_polygons[land_use_polygons<span class="sc">$</span>objektart <span class="sc">==</span> <span class="st">&quot;Wald&quot;</span>]</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>forest_template <span class="ot">&lt;-</span> <span class="fu">rast</span>(</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">extent =</span> <span class="fu">ext</span>(canton_polygons),   <span class="co"># extent of canton polygons</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">resolution =</span> <span class="dv">100</span>,        <span class="co"># set your desired resolution (in map units, e.g. meters)</span></span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">crs =</span> <span class="fu">crs</span>(canton_polygons)        <span class="co"># crs of canton polygons</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">extent =</span> <span class="fu">ext</span>(canton_polygons),    <span class="co"># take the extend from the canton polygon dataset</span></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">resolution =</span> <span class="dv">100</span>,        <span class="co"># set the resolution of the raster (here 100m x 100m)</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">crs =</span> <span class="fu">crs</span>(canton_polygons)        <span class="co"># same CRS as the canton polygons</span></span>
 <span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co"># All forested areas get the value 100, all other areas get 0.</span></span>
@@ -4133,6 +4139,7 @@ window.Quarto = {
 </div>
 </div>
 </div>
+<p>(<strong>Note</strong> : I’m also taking the extend of the canton polygons here, even tough I am rasterising the forest polygons. This will make the <code>zonal statistics</code> step easier. Terra is very strict when it comes to extends, and `zonal operations (and many other functionallities) only work, if all the input rasters have the same extent)</p>
 </section>
 <section id="calculating-percentage-forest-cover" class="level3">
 <h3 class="anchored" data-anchor-id="calculating-percentage-forest-cover">Calculating Percentage Forest Cover</h3>
@@ -4148,23 +4155,24 @@ window.Quarto = {
 \]</span></p>
 <p>So the mean directly gives the percentage forest cover for every canton.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>kanton_number_keys <span class="ot">&lt;-</span> canton_polygons <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(name, kantonsnummer)</span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co"># get the kanton numbers and their corresponding names (for the join later on)</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>kanton_number_keys <span class="ot">&lt;-</span> canton_polygons <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(name, kantonsnummer)</span>
 <span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>forest_are_per_canton <span class="ot">&lt;-</span> <span class="fu">zonal</span>(forest_raster, canton_raster, <span class="at">fun =</span> <span class="st">&quot;mean&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>                            <span class="fu">as_tibble</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>                            <span class="fu">mutate</span>(</span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>                                <span class="at">percentual_forest_cover =</span> layer</span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>                            ) <span class="sc">%&gt;%</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>                                <span class="fu">inner_join</span>(</span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>                                    kanton_number_keys,</span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>                                    <span class="at">by =</span> <span class="fu">join_by</span>(kantonsnummer <span class="sc">==</span> kantonsnummer)</span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>                                ) <span class="sc">%&gt;%</span></span>
-<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>                                    <span class="fu">select</span>(<span class="sc">!</span><span class="fu">c</span>(layer, kantonsnummer)) <span class="sc">%&gt;%</span></span>
-<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>                                    <span class="fu">arrange</span>(<span class="fu">desc</span>(percentual_forest_cover))</span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>forest_are_per_canton</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Compute the forest coverage using zonal operations</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>forest_are_per_canton <span class="ot">&lt;-</span> <span class="fu">zonal</span>(forest_raster, canton_raster, <span class="at">fun =</span> <span class="st">&quot;mean&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>                            <span class="fu">as_tibble</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>                            <span class="fu">mutate</span>(</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>                                <span class="at">percentual_forest_cover =</span> layer</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>                            ) <span class="sc">%&gt;%</span></span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>                              <span class="fu">inner_join</span>(</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>                                kanton_number_keys,</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>                                <span class="at">by =</span> <span class="fu">join_by</span>(kantonsnummer <span class="sc">==</span> kantonsnummer)</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>                                ) <span class="sc">%&gt;%</span></span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>                                  <span class="fu">select</span>(<span class="sc">!</span><span class="fu">c</span>(layer, kantonsnummer)) <span class="sc">%&gt;%</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>                                  <span class="fu">arrange</span>(<span class="fu">desc</span>(percentual_forest_cover))</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>forest_are_per_canton</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 26 × 2
    percentual_forest_cover name                  
@@ -4185,7 +4193,7 @@ window.Quarto = {
 </section>
 <section id="performing-timing" class="level3">
 <h3 class="anchored" data-anchor-id="performing-timing">Performing Timing</h3>
-<p>Now let’s measure this with tictoc. In order to perform a fair comparison, the rasterization step must be included in the timing. To make the comparison with GDAL fair, the data reading step is also included — GDAL has to read from disk on every run. This also means we need to be aware that the comparison carries some subjectiveness: the cell size is set externally and different values are valid. For small cell sizes the raster-based workflow may be slower, while for larger ones it may be faster. Therefore, for a proper comparison, the accuracy of the result also needs to be taken into consideration.</p>
+<p>Now let’s measure this with tictoc. To make later comparison with GDAL fair, the data reading step is also included. (Technically, writing the resulting raster should also be included here, as GDAL has to do this step too).</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">tic</span>(<span class="st">&quot;terra&quot;</span>)</span>
 <span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a></span>
@@ -4239,7 +4247,7 @@ window.Quarto = {
 <span id="cb16-40"><a href="#cb16-40" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb16-41"><a href="#cb16-41" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>terra: 17.665 sec elapsed</code></pre>
+<pre><code>terra: 10.706 sec elapsed</code></pre>
 </div>
 </div>
 </section>
@@ -4401,7 +4409,7 @@ kantonsnummer,name,mean
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>GDAL: 4.796 sec elapsed</code></pre>
+<pre><code>GDAL: 2.951 sec elapsed</code></pre>
 </div>
 </div>
 </section>
@@ -4470,7 +4478,7 @@ Projected CRS: CH1903+ / LV95</code></pre>
 <span id="cb34-27"><a href="#cb34-27" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb34-28"><a href="#cb34-28" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>sf: 454.635 sec elapsed</code></pre>
+<pre><code>sf: 321.565 sec elapsed</code></pre>
 </div>
 </div>
 <p><strong>DuckDB</strong></p>
@@ -4487,7 +4495,7 @@ Projected CRS: CH1903+ / LV95</code></pre>
 <span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>canton_frac <span class="ot">&lt;-</span> <span class="fu">dbReadTable</span>(con, <span class="st">&quot;cantonal_forest_fractions&quot;</span>)</span>
 <span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>tictoc<span class="sc">::</span><span class="fu">toc</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>DuckDB: 133.82 sec elapsed</code></pre>
+<pre><code>DuckDB: 173.33 sec elapsed</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">print</span>(canton_frac)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -4525,12 +4533,12 @@ Projected CRS: CH1903+ / LV95</code></pre>
 <h3 class="anchored" data-anchor-id="interpretation">Interpretation</h3>
 <section id="gdal-vs.-terra" class="level4">
 <h4 class="anchored" data-anchor-id="gdal-vs.-terra">GDAL vs. terra</h4>
-<p>The GDAL workflow is the fastest of all approaches, beating the terra workflow by a factor of approximately 4×. This is rather surprising, because GDAL reads from and writes to disk multiple times during its workflow. I had always assumed that, due to a concept known as the <a href="https://wwwlehre.dhbw-stuttgart.de/~kfg/db/dbMA.pdf">Zugriffslücke</a> — the large performance gap between memory and disk access — such workflows should carry a severe disadvantage. So what causes the speed difference between <code>GDAL</code> and <code>terra</code>? It might be that there is some additional overhead caused by <code>R</code> resulting in slower exection speed in <code>terra</code>.</p>
+<p>The GDAL workflow is the fastest of all approaches, beating the terra workflow by a factor of approximately 4×. Was rather surprising to me, because GDAL reads from and writes to disk multiple times during its workflow. I had always assumed that, due to a concept known as the <a href="https://wwwlehre.dhbw-stuttgart.de/~kfg/db/dbMA.pdf">Zugriffslücke</a> — the large performance gap between memory and disk access — such workflows should carry a severe disadvantage. So what causes the speed difference between <code>GDAL</code> and <code>terra</code>? It might be that there is some additional overhead caused by <code>R</code> resulting in slower exection speed in <code>terra</code>, but ultimately I do not know.</p>
 </section>
 <section id="raster-based-vs.-vector-based" class="level4">
 <h4 class="anchored" data-anchor-id="raster-based-vs.-vector-based">Raster-based vs. vector-based</h4>
 <p>In terms of speed, both raster-based workflows (GDAL and terra) are clearly faster than the vector-based ones, performing the same analysis in a fraction of the time.</p>
-<p>This result has to be taken with a grain of salt regardless. Through rasterization we lose precision, which might be important in a given project. To obtain more precise results, one would need to choose smaller cell sizes, which in turn increases compute time and narrows the speed gap with the vector-based approaches. So the speed advantage at least partially stems from a trade-off with accuracy: if we are not willing to accept that trade-off, the advantage will likely decrease.</p>
+<p>This result has to be taken with a grain of salt however. Through rasterization we lose precision, which might be important in a given project. To obtain more precise results, one would need to choose smaller cell sizes, which in turn increases compute time and narrows the speed gap with the vector-based approaches. So the speed advantage at least partially stems from a trade-off with accuracy.</p>
 </section>
 </section>
 </section>
