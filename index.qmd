@@ -1,8 +1,12 @@
 ---
 title: "Raster Deepdive: Tasks"
+author: "Etienne"
+date: today
 format:
   html:
     embed-resources: true
+    toc: true
+    toc-location: right
 engine: knitr
 execute:
   freeze: auto
@@ -50,12 +54,12 @@ With `terra::vect()`, GeoPackages can be read in. Using the `layer` argument, we
 
 ```{r}
 #| message: false
+#| warning: false
 
 canton_polygons <- terra::vect(
-  "data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg", 
+  "data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg",
   layer = "tlm_kantonsgebiet"
   )
-
 
 ```
 
@@ -64,7 +68,7 @@ canton_polygons <- terra::vect(
 
 ```{r}
 #| message: false
-
+#| warning: false
 land_use_polygons <- terra::vect(
   "data/SWISSTLM3D_2025.gpkg",
   layer = "tlm_bb_bodenbedeckung"
@@ -78,9 +82,11 @@ Let's get a quick visual confirmation that we imported reasonable things. We can
 
 
 ```{r}
-plot(canton_polygons)
+plot(canton_polygons, main = "Swiss Canton Boundaries")
+```
 
-plot(land_use_polygons)
+```{r}
+plot(land_use_polygons, main = "Land Use Polygons (tlm_bb_bodenbedeckung)")
 ```
 
 
@@ -92,7 +98,8 @@ Rasterizing requires a raster as a blueprint for the conversion. From it, attrib
 
 
 ```{r}
-
+#| message: false
+#| warning: false
 template_canton <- rast(
   extent = ext(canton_polygons),   # take the extend from the canton polygon dataset
   resolution = 100,        # set the resolution of the raster (here 100m x 100m)
@@ -102,9 +109,7 @@ template_canton <- rast(
 canton_raster <- rasterize(canton_polygons,template_canton, field = "kantonsnummer")
 
 
-plot(canton_raster)
-
-
+plot(canton_raster, main = "Rasterized Canton Boundaries (100m Resolution)")
 
 
 ```
@@ -115,7 +120,8 @@ plot(canton_raster)
 For the land-use data, we need to be aware that land-use polygons can overlap. This causes problems when rasterizing, because each cell can only hold one value. The easiest way to handle this is to apply a filter operation on the polygons before rasterization. (So in the end, I still had to do some vector data manipulation). The `field` parameter sets the burn-in value for the raster. I am choosing 100 here, as this will make the calculation of the percentage forest cover very easy in a later step. For areas where no forest polygon lies, I assign the value 0.
 
 ```{r}
-
+#| message: false
+#| warning: false
 forest_polygons <- land_use_polygons[land_use_polygons$objektart == "Wald"]
 
 
@@ -128,7 +134,7 @@ forest_template <- rast(
 # All forested areas get the value 100, all other areas get 0.
 forest_raster <- rasterize(forest_polygons, forest_template, field = 100, background = 0)
 
-plot(forest_raster)
+plot(forest_raster, main = "Forest Raster (100m Resolution)")
 ```
 
 (**Note** : I'm also taking the extend of the canton polygons here, even tough I am rasterising the forest polygons. This will make the `zonal statistics` step easier. Terra is very strict when it comes to extends, and `zonal operations (and many other functionallities) only work, if all the input rasters have the same extent)
@@ -180,23 +186,27 @@ Now let's measure this with tictoc. To make later comparison with GDAL fair, the
 ```{r}
 #| message: false
 
-tictoc::tic("terra")
+tic("Terra Total:")
 
+tic("terra: load canton polygons")
 canton_polygons <- terra::vect("data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg", layer = "tlm_kantonsgebiet")
-land_use_polygons <- terra::vect("data/SWISSTLM3D_2025.gpkg", layer = "tlm_bb_bodenbedeckung")
+toc()
 
+tic("terra: load land use polygons")
+land_use_polygons <- terra::vect("data/SWISSTLM3D_2025.gpkg", layer = "tlm_bb_bodenbedeckung")
+toc()
+
+tic("terra: rasterize canton polygons")
 template_canton <- rast(
   extent = ext(canton_polygons),   # takes extent from your vector
   resolution = 100,        # set your desired resolution (in map units, e.g. meters)
   crs = crs(canton_polygons)        # same CRS as your vector
 )
+canton_raster <- rasterize(canton_polygons, template_canton, field = "kantonsnummer")
+toc()
 
-canton_raster <- rasterize( canton_polygons,template_canton, field = "kantonsnummer")
-
-
-
+tic("terra: filter and rasterize forest polygons")
 forest_polygons <- land_use_polygons[land_use_polygons$objektart == "Wald"]
-
 
 forest_template <- rast(
   extent = ext(canton_polygons),   # extent of canton polygons
@@ -206,11 +216,11 @@ forest_template <- rast(
 
 # All forested areas get the value 100, all other areas get 0.
 forest_raster <- rasterize(forest_polygons, forest_template, field = 100, background = 0)
+toc()
 
-
+tic("terra: zonal statistics")
 kanton_number_keys <- canton_polygons %>% as.data.frame() %>%
     select(name, kantonsnummer)
-
 
 forest_are_per_canton <- zonal(forest_raster, canton_raster, fun = "mean") %>%
                             as_tibble() %>%
@@ -223,11 +233,10 @@ forest_are_per_canton <- zonal(forest_raster, canton_raster, fun = "mean") %>%
                                 ) %>%
                                     select(!c(layer, kantonsnummer)) %>%
                                     arrange(desc(percentual_forest_cover))
+toc()
 
 
-tictoc::toc()
-
-
+toc()
 ```
 
 
@@ -343,9 +352,9 @@ cat final_analysis_results.csv
 As already mentioned in the task description, timing is not straightforward here since tictoc is an R library. The workaround is to wrap the bash block containing all commands between two R chunks calling `tic()` and `toc()`.
 
 ```{r}
-tictoc::tic("GDAL")
+tictoc::tic("GDAL: total")
+tictoc::tic("GDAL: rasterize canton polygons")
 ```
-
 
 ```{bash}
 #| output: false
@@ -356,6 +365,15 @@ gdal vector rasterize -l tlm_kantonsgebiet \
         -a kantonsnummer \
         --overwrite \
         --output ./data/kantone_raster
+```
+
+```{r}
+tictoc::toc()
+tictoc::tic("GDAL: rasterize forest polygons")
+```
+
+```{bash}
+#| output: false
 
 gdal vector rasterize --where "objektart='Wald'" \
         -l tlm_bb_bodenbedeckung \
@@ -366,12 +384,30 @@ gdal vector rasterize --where "objektart='Wald'" \
         --init 0 \
         --burn 100 \
         --output ./data/forest_raster_cent
+```
+
+```{r}
+tictoc::toc()
+tictoc::tic("GDAL: zonal statistics")
+```
+
+```{bash}
+#| output: false
 
 gdal raster zonal-stats --input ./data/forest_raster_cent \
         --zones ./data/kantone_raster \
         --stat=mean \
         --overwrite \
         --output ./data/cantonal_forest_percent.csv
+```
+
+```{r}
+tictoc::toc()
+tictoc::tic("GDAL: SQL join")
+```
+
+```{bash}
+#| output: false
 
 gdal vector sql \
     --input ./data/cantonal_forest_percent.csv \
@@ -384,10 +420,10 @@ gdal vector sql \
     --format CSV \
     --overwrite \
     --output final_analysis_results.csv
-
 ```
 
 ```{r}
+tictoc::toc()
 tictoc::toc()
 ```
 
@@ -402,6 +438,8 @@ To complete the comparison, here are the timings for the `sf` and DuckDB approac
 #| message: false
 #| warning: false
 
+tictoc::tic("sf")
+
 canton_polygons <- st_read(
   "./data/swissBOUNDARIES3D_1_5_LV95_LN02.gpkg",
   layer = "tlm_kantonsgebiet"
@@ -413,7 +451,7 @@ ground_cover_polygons <- st_read(
   layer = "tlm_bb_bodenbedeckung"
 )
 
-tictoc::tic("sf")
+
 
 forest_polygons <- ground_cover_polygons %>%
   filter(objektart == "Wald")
@@ -449,6 +487,8 @@ tictoc::toc()
 **DuckDB**
 
 ```{r}
+#| message: false
+#| warning: false
 
 con <- dbConnect(
   duckdb(),
